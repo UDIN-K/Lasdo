@@ -1,84 +1,138 @@
-import React from 'react';
-import { Calendar, Shield, CreditCard, Sparkles, Building2, UserCheck, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navbar({ activeView, setActiveView, onNavigateTo }) {
-  return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18">
-          {/* Logo / Wordmark */}
-          <div
-            onClick={() => { setActiveView('customer'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className="flex items-center gap-3 cursor-pointer select-none group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-800 to-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-900/20 group-hover:scale-105 transition-transform">
-              <span className="font-heading font-extrabold text-xl tracking-tight">L</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-heading font-black text-xl tracking-tight text-slate-900">
-                  Lasdo Family Futsal
-                </span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-500 leading-tight">
-                Arena Olahraga & Gedung Serbaguna
-              </p>
-            </div>
-          </div>
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-          {/* Nav Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+  const handleNavClick = (sectionId) => {
+    setActiveView('customer');
+    setMobileMenuOpen(false);
+    onNavigateTo(sectionId);
+  };
+
+  return (
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-8 h-16">
+          {/* Zone 1: Single-line Brand Wordmark */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveView('customer');
+              setMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="font-heading font-bold text-lg sm:text-xl tracking-tight text-zinc-900 whitespace-nowrap shrink-0 hover:text-emerald-800 transition-colors cursor-pointer"
+          >
+            Lasdo Family Futsal
+          </button>
+
+          {/* Zone 2: Clean Single-Line Nav Links */}
+          <nav
+            aria-label="Navigasi Utama"
+            className="hidden md:flex items-center gap-7 text-sm font-medium text-zinc-600"
+          >
             <button
-              onClick={() => { setActiveView('customer'); onNavigateTo('jadwal'); }}
-              className="px-3.5 py-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100/80 rounded-lg transition-colors flex items-center gap-1.5"
+              type="button"
+              onClick={() => handleNavClick('jadwal')}
+              className="hover:text-zinc-950 hover:underline underline-offset-4 decoration-emerald-700 decoration-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Calendar className="w-4 h-4 text-emerald-600" />
               Jadwal
             </button>
             <button
-              onClick={() => { setActiveView('customer'); onNavigateTo('pesan'); }}
-              className="px-3.5 py-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100/80 rounded-lg transition-colors flex items-center gap-1.5"
+              type="button"
+              onClick={() => handleNavClick('pesan')}
+              className="hover:text-zinc-950 hover:underline underline-offset-4 decoration-emerald-700 decoration-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Building2 className="w-4 h-4 text-emerald-600" />
               Pesan
             </button>
             <button
-              onClick={() => { setActiveView('customer'); onNavigateTo('qris'); }}
-              className="px-3.5 py-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100/80 rounded-lg transition-colors flex items-center gap-1.5"
+              type="button"
+              onClick={() => handleNavClick('qris')}
+              className="hover:text-zinc-950 hover:underline underline-offset-4 decoration-emerald-700 decoration-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <CreditCard className="w-4 h-4 text-emerald-600" />
               Cek QRIS
             </button>
             <button
-              onClick={() => { setActiveView('customer'); onNavigateTo('fasilitas'); }}
-              className="px-3.5 py-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100/80 rounded-lg transition-colors flex items-center gap-1.5"
+              type="button"
+              onClick={() => handleNavClick('fasilitas')}
+              className="hover:text-zinc-950 hover:underline underline-offset-4 decoration-emerald-700 decoration-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Shield className="w-4 h-4 text-emerald-600" />
               Fasilitas
             </button>
           </nav>
 
-          {/* Right Action: Switch Portal */}
-          <div className="flex items-center gap-2">
+          {/* Zone 3: 1 Primary Action + Mobile Menu Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
             {activeView === 'customer' ? (
               <button
-                onClick={() => setActiveView('admin')}
-                className="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm flex items-center gap-2 transition-all hover:shadow"
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setActiveView('admin');
+                }}
+                className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-md bg-zinc-900 hover:bg-zinc-800 text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                <UserCheck className="w-4 h-4 text-emerald-400" />
-                <span>Portal Pengelola</span>
-                <ArrowRight className="w-3.5 h-3.5 opacity-70 hidden sm:inline" />
+                Portal Pengelola
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => setActiveView('customer')}
-                className="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm flex items-center gap-2 transition-all"
+                className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-md bg-emerald-700 hover:bg-emerald-800 text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                <span>Tampilan Customer</span>
+                Tampilan Customer
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label={mobileMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+              aria-expanded={mobileMenuOpen}
+              className="md:hidden p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <nav
+            aria-label="Navigasi Mobile"
+            className="md:hidden py-3 border-t border-slate-200 grid grid-cols-2 gap-2"
+          >
+            <button
+              type="button"
+              onClick={() => handleNavClick('jadwal')}
+              className="px-3 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg"
+            >
+              Jadwal Kosong
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('pesan')}
+              className="px-3 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg"
+            >
+              Form Pemesanan
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('qris')}
+              className="px-3 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg"
+            >
+              Cek QRIS
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('fasilitas')}
+              className="px-3 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg"
+            >
+              Fasilitas & Aturan
+            </button>
+          </nav>
+        )}
       </div>
     </header>
   );

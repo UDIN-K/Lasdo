@@ -1,185 +1,94 @@
-import React from 'react';
-import { Calendar, Clock, CreditCard, Sparkles, Building2, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2 } from 'lucide-react';
+import venueCourtImg from '../assets/images/venue_futsal_court_1795716184209.jpg';
 
-export default function HeroSection({ onBookClick, onScheduleClick }) {
+export default function HeroSection({ onBookClick, onScheduleClick, onQrisClick }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/50 via-white to-slate-50 pt-8 pb-14 border-b border-slate-200">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 pointer-events-none opacity-40">
-        <div className="absolute -top-12 left-10 w-72 h-72 bg-emerald-200/50 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 right-10 w-96 h-96 bg-teal-200/40 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-          {/* Left Column: Text & CTA */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold shadow-xs">
-              <Sparkles className="w-4 h-4 text-emerald-700 animate-pulse" />
-              <span>Capstone Asah 2026 — Tim A26-CS150</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-              Sewa Lapangan Futsal & <br className="hidden sm:inline" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700">
-                Gedung Serbaguna Indoor
-              </span>
-            </h1>
-
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
-              Platform reservasi digital resmi <strong className="text-slate-800 font-semibold">Lasdo Family Futsal</strong> (Kelolaan Christino Hirasdo Wiryawan). Cek jadwal kosong secara transparan tanpa risiko bentrok, nikmati tarif sewa terkunci, dan selesaikan pembayaran cepat via QRIS.
+    <section className="bg-white pt-10 pb-10 border-b border-stone-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
+          {/* Left Column: Direct Copy & Actions */}
+          <div className="lg:col-span-6 flex flex-col justify-center space-y-5 py-2">
+            <p className="text-xs sm:text-sm font-medium text-emerald-800">
+              Buka setiap hari pukul 08:00 – 22:00 WIB
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            <h1 className="text-3xl sm:text-[44px] font-bold text-zinc-900 tracking-tight leading-[1.12]">
+              Sewa Lapangan Futsal & Gedung Serbaguna
+            </h1>
+
+            <p className="text-base text-zinc-600 leading-relaxed max-w-xl">
+              Lihat jam yang masih kosong hari ini, pilih durasi main atau acara keluarga, dan selesaikan pembayaran langsung lewat QRIS di Lasdo Family Futsal.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
+                type="button"
                 onClick={onScheduleClick}
-                className="px-6 py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm sm:text-base shadow-md shadow-emerald-900/20 flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95"
+                className="px-5 py-3 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm sm:text-base transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                <Calendar className="w-5 h-5" />
-                <span>Lihat Jadwal Kosong</span>
-                <ArrowRight className="w-4 h-4" />
+                Lihat Jadwal Kosong
               </button>
 
               <button
-                onClick={onBookClick}
-                className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm sm:text-base border border-slate-300 shadow-xs flex items-center gap-2 transition-all hover:border-slate-400"
+                type="button"
+                onClick={onQrisClick || onBookClick}
+                className="px-5 py-3 rounded-md bg-white hover:bg-stone-50 text-zinc-800 font-semibold text-sm sm:text-base border border-stone-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                <Building2 className="w-5 h-5 text-emerald-700" />
-                <span>Form Pemesanan</span>
+                Cek Kode Booking
               </button>
-            </div>
-
-            {/* Key Advantages */}
-            <div className="flex flex-wrap gap-4 pt-2 text-xs sm:text-sm text-slate-600">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Pencegahan Bentrok Otomatis</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Harga Terkunci Pasti</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>QRIS Instan Semua Bank</span>
-              </div>
             </div>
           </div>
 
-          {/* Right Column: Visual Arena Graphic */}
-          <div className="lg:col-span-5">
-            <div className="relative mx-auto max-w-md lg:max-w-none">
-              <div className="relative rounded-2xl bg-gradient-to-tr from-slate-900 via-emerald-950 to-slate-900 p-6 shadow-2xl text-white border border-emerald-900/40 overflow-hidden">
-                {/* Court illustration */}
-                <div className="absolute inset-0 opacity-15 pointer-events-none">
-                  <svg className="w-full h-full" viewBox="0 0 400 300" fill="none" stroke="currentColor">
-                    <rect x="20" y="20" width="360" height="260" rx="8" strokeWidth="2" />
-                    <line x1="200" y1="20" x2="200" y2="280" strokeWidth="2" />
-                    <circle cx="200" cy="150" r="45" strokeWidth="2" />
-                    <rect x="20" y="80" width="60" height="140" strokeWidth="2" />
-                    <rect x="320" y="80" width="60" height="140" strokeWidth="2" />
-                  </svg>
+          {/* Right Column: Authentic Unobstructed Venue Photography */}
+          <div className="lg:col-span-6">
+            <div className="h-full min-h-[260px] sm:min-h-[320px] rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
+              {!imgError ? (
+                <img
+                  src={venueCourtImg}
+                  alt="Lapangan futsal indoor rumput sintetis Lasdo Family Futsal dengan jaring pengaman dan lampu arena"
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                  className="w-full h-full lg:h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full min-h-[260px] flex flex-col items-center justify-center bg-stone-100 text-zinc-700 p-8 text-center">
+                  <Building2 className="w-10 h-10 text-emerald-700 mb-2" />
+                  <p className="font-heading font-bold text-base">Lasdo Family Futsal</p>
+                  <p className="text-xs text-zinc-500 mt-1">Lapangan Futsal Indoor & Gedung Serbaguna</p>
                 </div>
-
-                <div className="relative z-10 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30">
-                      Indoor Synthetic Court
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                      Operasional Aktif
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-bold font-heading text-white">
-                      Lasdo Family Arena
-                    </h3>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Lapangan standar futsal indoor dengan pencahayaan LED terang, ventilasi optimal, dan fungsi ganda gedung serbaguna.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                      <span className="text-[11px] text-slate-300">Futsal Siang</span>
-                      <p className="font-mono text-base font-bold text-emerald-300 tabular-nums">
-                        Rp 100.000<span className="text-[10px] text-slate-300 font-normal">/jam</span>
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                      <span className="text-[11px] text-slate-300">Malam / Weekend</span>
-                      <p className="font-mono text-base font-bold text-amber-300 tabular-nums">
-                        Rp 150.000<span className="text-[10px] text-slate-300 font-normal">/jam</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-emerald-900/60 border border-emerald-700/50 flex items-center justify-between">
-                    <div>
-                      <span className="text-[11px] text-emerald-200 block">Sewa Gedung Acara</span>
-                      <span className="text-xs text-white font-medium">Syukuran / Senam / Resepsi</span>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-white tabular-nums">
-                      Rp 300.000<span className="text-[10px] text-emerald-200 font-normal">/jam</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* 4 Info Strips */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-slate-200">
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs text-slate-500 font-medium block">Jam Operasional</span>
-              <span className="text-sm font-bold font-mono text-slate-900 tabular-nums">
-                08:00 – 22:00 WIB
-              </span>
-            </div>
+        {/* Clean Tariff & Hours Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-10 pt-7 border-t border-stone-200">
+          <div>
+            <span className="text-xs text-zinc-500 block">Jam Operasional</span>
+            <span className="font-heading text-sm sm:text-base font-bold text-zinc-900 tabular-nums mt-0.5 block">
+              08:00 – 22:00 WIB
+            </span>
           </div>
-
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs text-slate-500 font-medium block">Tarif Futsal</span>
-              <span className="text-sm font-bold font-mono text-slate-900 tabular-nums">
-                Mulai Rp 100.000
-              </span>
-            </div>
+          <div>
+            <span className="text-xs text-zinc-500 block">Futsal Siang (Sen–Jum)</span>
+            <span className="font-heading text-sm sm:text-base font-bold text-zinc-900 tabular-nums mt-0.5 block">
+              Rp 100.000 / jam
+            </span>
           </div>
-
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs text-slate-500 font-medium block">Gedung Serbaguna</span>
-              <span className="text-sm font-bold font-mono text-slate-900 tabular-nums">
-                Rp 300.000 / jam
-              </span>
-            </div>
+          <div>
+            <span className="text-xs text-zinc-500 block">Malam & Akhir Pekan</span>
+            <span className="font-heading text-sm sm:text-base font-bold text-zinc-900 tabular-nums mt-0.5 block">
+              Rp 150.000 / jam
+            </span>
           </div>
-
-          <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs text-slate-500 font-medium block">Pembayaran QRIS</span>
-              <span className="text-sm font-bold text-slate-900">
-                Instan & Transparan
-              </span>
-            </div>
+          <div>
+            <span className="text-xs text-zinc-500 block">Gedung Serbaguna</span>
+            <span className="font-heading text-sm sm:text-base font-bold text-emerald-800 tabular-nums mt-0.5 block">
+              Rp 300.000 / jam
+            </span>
           </div>
         </div>
       </div>

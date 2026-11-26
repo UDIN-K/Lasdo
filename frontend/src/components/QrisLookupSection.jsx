@@ -1,6 +1,63 @@
-import React, { useState } from 'react';
-import { Search, CreditCard, Copy, Check, RefreshCw, AlertCircle, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Search,
+  Copy,
+  Check,
+  RefreshCw,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { lookupBooking } from '../services/api';
+import { formatHour, formatRupiah } from '../utils/bookingHelpers';
+
+function buildDeterministicQrMatrix(seedText) {
+  const size = 21;
+  const grid = Array.from({ length: size }, () => Array(size).fill(false));
+
+  const drawFinder = (r0, c0) => {
+    for (let r = 0; r < 7; r += 1) {
+      for (let c = 0; c < 7; c += 1) {
+        const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
+        const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+        grid[r0 + r][c0 + c] = isBorder || isInner;
+      }
+    }
+  };
+
+  drawFinder(0, 0);
+  drawFinder(0, size - 7);
+  drawFinder(size - 7, 0);
+
+  for (let i = 8; i < size - 8; i += 1) {
+    grid[6][i] = i % 2 === 0;
+    grid[i][6] = i % 2 === 0;
+  }
+
+  let hash = 2166136261;
+  for (let i = 0; i < seedText.length; i += 1) {
+    hash ^= seedText.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  for (let r = 0; r < size; r += 1) {
+    for (let c = 0; c < size; c += 1) {
+      const inTopLeft = r < 8 && c < 8;
+      const inTopRight = r < 8 && c >= size - 8;
+      const inBottomLeft = r >= size - 8 && c < 8;
+      const inCenterLogo = r >= 8 && r <= 12 && c >= 8 && c <= 12;
+      if (inTopLeft || inTopRight || inBottomLeft || r === 6 || c === 6 || inCenterLogo) {
+        continue;
+      }
+      hash ^= (r * 31 + c * 17);
+      hash = Math.imul(hash, 16777619);
+      grid[r][c] = ((hash >>> 0) % 10) < 5;
+    }
+  }
+
+  return grid;
+}
 
 export default function QrisLookupSection({ prefillCode }) {
   const [query, setQuery] = useState(prefillCode || 'LFF-2611-001');
@@ -8,14 +65,6 @@ export default function QrisLookupSection({ prefillCode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-
-  // Update query saat prefillCode berubah
-  React.useEffect(() => {
-    if (prefillCode) {
-      setQuery(prefillCode);
-      handleSearch(prefillCode);
-    }
-  }, [prefillCode]);
 
   const handleSearch = async (searchQ = query) => {
     if (!searchQ || !searchQ.trim()) return;
@@ -32,25 +81,38 @@ export default function QrisLookupSection({ prefillCode }) {
     }
   };
 
+  useEffect(() => {
+    if (prefillCode) {
+      setQuery(prefillCode);
+      handleSearch(prefillCode);
+    }
+  }, [prefillCode]);
+
   const copyCode = (code) => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const qrMatrix = useMemo(
+    () => buildDeterministicQrMatrix(bookingData?.booking_code || 'LFF-2611-001'),
+    [bookingData?.booking_code]
+  );
+
+  const isCancelled = bookingData?.booking_status === 'Dibatalkan';
+  const isPaid = bookingData?.payment_status === 'Lunas';
+  const isConfirmed =
+    bookingData?.booking_status === 'Dikonfirmasi' || bookingData?.booking_status === 'Selesai';
+
   return (
-    <section id="qris" className="py-14 bg-slate-50 border-b border-slate-200 scroll-mt-20">
+    <section id="qris" className="py-12 bg-white border-b border-stone-200 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="max-w-3xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-            Bagian 02
-          </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Pembayaran QRIS & Cek Status Pemesanan
+        <div className="max-w-2xl mb-7">
+          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            Cek Pesanan & Bayar QRIS
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 mt-2">
-            Lacak status verifikasi pesanan dan konfirmasi pembayaran QRIS Anda secara transparan dan real-time.
+          <p className="text-sm sm:text-base text-zinc-600 mt-1.5">
+            Masukkan kode booking atau nomor WhatsApp untuk melihat status pesanan dan kode QRIS pembayaran.
           </p>
         </div>
 
@@ -64,34 +126,30 @@ export default function QrisLookupSection({ prefillCode }) {
             className="flex items-center gap-2"
           >
             <div className="relative flex-1">
+              <label htmlFor="qris-lookup-input" className="sr-only">
+                Kode Booking atau Nomor WhatsApp
+              </label>
               <input
+                id="qris-lookup-input"
                 type="text"
-                placeholder="Masukkan Kode Booking (LFF-...) atau Nomor HP..."
+                placeholder="Kode Booking (LFF-...) atau Nomor HP..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
+                className="w-full bg-stone-50 border border-stone-300 rounded-md pl-10 pr-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-xs flex items-center gap-2 shrink-0 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm shrink-0 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" />
-                  <span>Cari</span>
-                </>
-              )}
+              {isLoading ? 'Mencari...' : 'Cari Pesanan'}
             </button>
           </form>
 
-          {/* Contoh Kode Booking Cepat untuk Pengujian */}
-          <div className="flex flex-wrap items-center gap-2 mt-2.5 text-xs text-slate-500">
-            <span className="font-medium">Contoh untuk Demo:</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-zinc-500">
+            <span>Contoh kode:</span>
             {['LFF-2611-001', 'LFF-2611-003', 'LFF-2611-004'].map((demoCode) => (
               <button
                 key={demoCode}
@@ -100,7 +158,7 @@ export default function QrisLookupSection({ prefillCode }) {
                   setQuery(demoCode);
                   handleSearch(demoCode);
                 }}
-                className="font-mono text-emerald-700 hover:underline hover:text-emerald-900 font-semibold"
+                className="font-mono text-emerald-800 hover:underline font-medium cursor-pointer"
               >
                 {demoCode}
               </button>
@@ -108,238 +166,201 @@ export default function QrisLookupSection({ prefillCode }) {
           </div>
         </div>
 
-        {/* Error Alert */}
         {error && (
-          <div className="max-w-2xl mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-center gap-3">
+          <div role="alert" className="max-w-2xl mb-6 p-4 rounded-md bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Hasil Pencarian & Kartu QRIS */}
         {bookingData && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Kartu Status Pemesanan */}
-            <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+            {/* Order Slip */}
+            <div className="lg:col-span-7 bg-[#fafaf8] p-6 rounded-lg border border-stone-200 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-stone-200">
                 <div>
-                  <span className="text-xs text-slate-500 block">Kode Booking</span>
+                  <span className="text-xs text-zinc-500 block">Kode Booking</span>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-mono text-xl font-black text-slate-900 tracking-tight">
+                    <span className="font-mono text-xl font-bold text-zinc-900 tracking-tight">
                       {bookingData.booking_code}
                     </span>
                     <button
                       type="button"
                       onClick={() => copyCode(bookingData.booking_code)}
-                      className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                      title="Salin Kode Booking"
+                      aria-label="Salin kode booking"
+                      className="p-1.5 rounded text-zinc-500 hover:text-emerald-700 hover:bg-white transition-colors cursor-pointer"
                     >
-                      {copied ? (
-                        <Check className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
+                      {copied ? <Check className="w-4 h-4 text-emerald-700" /> : <Copy className="w-4 h-4" />}
                     </button>
+                    {copied && <span className="text-xs font-medium text-emerald-700">Tersalin</span>}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSearch(bookingData.booking_code)}
-                    disabled={isLoading}
-                    className="p-2 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-slate-100 transition-colors"
-                    title="Perbarui Status Realtime"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  </button>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      bookingData.booking_status === 'Dikonfirmasi'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : bookingData.booking_status === 'Selesai'
-                        ? 'bg-blue-100 text-blue-800'
-                        : bookingData.booking_status === 'Dibatalkan'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {bookingData.booking_status}
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSearch(bookingData.booking_code)}
+                  disabled={isLoading}
+                  aria-label="Perbarui status pesanan"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-stone-200 text-xs font-semibold text-zinc-700 hover:bg-stone-100 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Perbarui</span>
+                </button>
               </div>
 
-              {/* Rincian Pesanan */}
+              {isCancelled ? (
+                <div className="p-3.5 rounded-md bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-center gap-2.5">
+                  <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+                  <span>Pesanan ini berstatus <strong>Dibatalkan</strong>. Hubungi pengelola untuk penjadwalan ulang.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 rounded-md bg-white border border-stone-200 divide-x divide-stone-200 overflow-hidden text-xs">
+                  <div className="p-3 bg-emerald-50/40">
+                    <span className="font-semibold text-emerald-800 block">1. Diajukan</span>
+                    <span className="text-zinc-600 text-[11px]">Jadwal terkunci</span>
+                  </div>
+                  <div className={`p-3 ${isPaid ? 'bg-emerald-50/40' : 'bg-amber-50/60'}`}>
+                    <span className={`font-semibold block ${isPaid ? 'text-emerald-800' : 'text-amber-800'}`}>
+                      2. Pembayaran
+                    </span>
+                    <span className="text-zinc-600 text-[11px]">
+                      {isPaid ? 'Lunas terverifikasi' : 'Menunggu QRIS'}
+                    </span>
+                  </div>
+                  <div className={`p-3 ${isConfirmed ? 'bg-emerald-50/40' : 'bg-white'}`}>
+                    <span className={`font-semibold block ${isConfirmed ? 'text-emerald-800' : 'text-zinc-500'}`}>
+                      3. Konfirmasi
+                    </span>
+                    <span className="text-zinc-600 text-[11px]">
+                      {bookingData.booking_status}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
                 <div>
-                  <span className="text-slate-500 text-xs block">Pemesan</span>
-                  <span className="font-bold text-slate-900">{bookingData.customer_name}</span>
+                  <span className="text-zinc-500 text-xs block">Pemesan</span>
+                  <span className="font-semibold text-zinc-900">{bookingData.customer_name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-xs block">Nomor HP WhatsApp</span>
-                  <span className="font-mono text-slate-900">{bookingData.phone_number}</span>
+                  <span className="text-zinc-500 text-xs block">Nomor WhatsApp</span>
+                  <span className="font-medium text-zinc-900 tabular-nums">{bookingData.phone_number}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-xs block">Layanan</span>
-                  <span className="font-semibold text-slate-900">
-                    {bookingData.service_type === 'serbaguna' ? 'Gedung Serbaguna' : 'Futsal Reguler'}
+                  <span className="text-zinc-500 text-xs block">Layanan</span>
+                  <span className="font-semibold text-zinc-900">
+                    {bookingData.service_type === 'serbaguna' ? 'Gedung Serbaguna' : 'Lapangan Futsal'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-xs block">Jadwal Sewa</span>
-                  <span className="font-mono font-semibold text-slate-900">
-                    {bookingData.date} ({String(bookingData.start_hour).padStart(2, '0')}:00 – {String(bookingData.end_hour).padStart(2, '0')}:00)
+                  <span className="text-zinc-500 text-xs block">Jadwal Sewa</span>
+                  <span className="font-semibold text-zinc-900 tabular-nums">
+                    {bookingData.date} ({formatHour(bookingData.start_hour)} – {formatHour(bookingData.end_hour)})
                   </span>
                 </div>
               </div>
 
               {bookingData.event_notes && (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                  <strong className="text-slate-700 block mb-0.5">Catatan Acara:</strong>
-                  <span>{bookingData.event_notes}</span>
+                <div className="pt-3 border-t border-stone-200 text-xs text-zinc-600">
+                  <strong className="text-zinc-800">Catatan:</strong> {bookingData.event_notes}
                 </div>
               )}
 
-              {/* Harga Terkunci */}
-              <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
+              <div className="pt-4 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <span className="text-xs text-emerald-900 font-semibold block">Total Tagihan Terkunci:</span>
-                  <span className="text-[11px] text-emerald-700">
-                    Tarif sewa per jam terkunci Rp {bookingData.locked_price_per_hour.toLocaleString('id-ID')}
+                  <span className="text-xs font-semibold text-zinc-700 block">Total Tagihan</span>
+                  <span className="text-[11px] text-zinc-500 tabular-nums">
+                    Tarif {formatRupiah(bookingData.locked_price_per_hour)} / jam
                   </span>
                 </div>
-                <span className="font-mono text-xl font-extrabold text-emerald-800 tabular-nums">
-                  Rp {bookingData.total_price.toLocaleString('id-ID')}
-                </span>
-              </div>
-
-              {/* Status Pembayaran */}
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-500">Status Pembayaran:</span>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-extrabold flex items-center gap-1.5 ${
-                    bookingData.payment_status === 'Lunas'
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : 'bg-red-100 text-red-800 border border-red-200'
-                  }`}
-                >
-                  {bookingData.payment_status === 'Lunas' ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Lunas (Terverifikasi)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="w-3.5 h-3.5 text-red-600" />
-                      <span>Belum Bayar (Menunggu Transfer)</span>
-                    </>
-                  )}
-                </span>
+                <div className="text-right">
+                  <span className="font-heading text-2xl font-bold text-emerald-800 tabular-nums block">
+                    {formatRupiah(bookingData.total_price)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold mt-0.5 text-zinc-700">
+                    {isPaid ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                        <span className="text-emerald-800">Lunas</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-amber-800">Belum Bayar</span>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Kartu QRIS Contoh Demo */}
-            <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-emerald-700" />
-                  <span className="font-heading font-bold text-slate-900 text-sm">
-                    QRIS Standar Pembayaran
-                  </span>
-                </div>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                  NMID: ID102026110015099
+            {/* Realistic QRIS Standee Card */}
+            <div className="lg:col-span-5 bg-white p-6 rounded-lg border border-stone-200 text-center space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                <span className="font-heading font-bold text-zinc-900 text-sm">
+                  QRIS Pembayaran
+                </span>
+                <span className="text-[11px] font-mono text-zinc-500">
+                  NMID ID102026110015099
                 </span>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 inline-block">
-                {/* SVG QRIS Mockup Bersih & Tajam */}
-                <svg
-                  className="w-48 h-48 mx-auto"
-                  viewBox="0 0 200 200"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="200" height="200" fill="white" rx="8" />
-                  {/* Outer Frame Corners */}
-                  <rect x="20" y="20" width="45" height="45" fill="#047857" rx="4" />
-                  <rect x="25" y="25" width="35" height="35" fill="white" rx="2" />
-                  <rect x="30" y="30" width="25" height="25" fill="#047857" rx="2" />
-
-                  <rect x="135" y="20" width="45" height="45" fill="#047857" rx="4" />
-                  <rect x="140" y="25" width="35" height="35" fill="white" rx="2" />
-                  <rect x="145" y="30" width="25" height="25" fill="#047857" rx="2" />
-
-                  <rect x="20" y="135" width="45" height="45" fill="#047857" rx="4" />
-                  <rect x="25" y="140" width="35" height="35" fill="white" rx="2" />
-                  <rect x="30" y="145" width="25" height="25" fill="#047857" rx="2" />
-
-                  {/* QR Pattern Matrix Dots */}
-                  <rect x="75" y="25" width="10" height="10" fill="#0f172a" />
-                  <rect x="95" y="25" width="10" height="10" fill="#0f172a" />
-                  <rect x="115" y="25" width="10" height="10" fill="#0f172a" />
-                  <rect x="75" y="45" width="10" height="10" fill="#0f172a" />
-                  <rect x="105" y="45" width="10" height="10" fill="#0f172a" />
-
-                  <rect x="25" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="45" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="65" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="85" y="75" width="10" height="10" fill="#047857" />
-                  <rect x="105" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="125" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="145" y="75" width="10" height="10" fill="#0f172a" />
-                  <rect x="165" y="75" width="10" height="10" fill="#0f172a" />
-
-                  <rect x="75" y="95" width="10" height="10" fill="#0f172a" />
-                  <rect x="95" y="95" width="10" height="10" fill="#047857" />
-                  <rect x="115" y="95" width="10" height="10" fill="#0f172a" />
-
-                  <rect x="25" y="115" width="10" height="10" fill="#0f172a" />
-                  <rect x="55" y="115" width="10" height="10" fill="#0f172a" />
-                  <rect x="85" y="115" width="10" height="10" fill="#0f172a" />
-                  <rect x="115" y="115" width="10" height="10" fill="#0f172a" />
-                  <rect x="145" y="115" width="10" height="10" fill="#0f172a" />
-                  <rect x="165" y="115" width="10" height="10" fill="#0f172a" />
-
-                  <rect x="75" y="135" width="10" height="10" fill="#0f172a" />
-                  <rect x="95" y="135" width="10" height="10" fill="#0f172a" />
-                  <rect x="115" y="135" width="10" height="10" fill="#0f172a" />
-                  <rect x="135" y="135" width="10" height="10" fill="#0f172a" />
-                  <rect x="155" y="135" width="10" height="10" fill="#0f172a" />
-
-                  <rect x="75" y="155" width="10" height="10" fill="#0f172a" />
-                  <rect x="105" y="155" width="10" height="10" fill="#0f172a" />
-                  <rect x="125" y="155" width="10" height="10" fill="#0f172a" />
-                  <rect x="165" y="155" width="10" height="10" fill="#0f172a" />
-
-                  {/* Center Badge */}
-                  <circle cx="100" cy="100" r="18" fill="white" stroke="#047857" strokeWidth="2" />
-                  <text
-                    x="100"
-                    y="104"
-                    fontFamily="Outfit, sans-serif"
-                    fontSize="11"
-                    fontWeight="800"
-                    fill="#047857"
-                    textAnchor="middle"
+              <div className="py-2">
+                <div className="inline-block p-3 bg-white border border-stone-200 rounded-md">
+                  <svg
+                    className="w-44 h-44 mx-auto"
+                    viewBox="0 0 210 210"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    role="img"
+                    aria-label={`Kode QRIS pembayaran untuk ${bookingData.booking_code}`}
                   >
-                    LFF
-                  </text>
-                </svg>
-                <div className="mt-2 text-xs font-bold text-slate-900">
+                    <rect width="210" height="210" fill="#ffffff" />
+                    {qrMatrix.map((row, r) =>
+                      row.map((filled, c) =>
+                        filled ? (
+                          <rect
+                            key={`${r}-${c}`}
+                            x={c * 10}
+                            y={r * 10}
+                            width="9.5"
+                            height="9.5"
+                            fill="#18181b"
+                            rx="1"
+                          />
+                        ) : null
+                      )
+                    )}
+                    <rect x="82" y="82" width="46" height="46" rx="6" fill="#ffffff" stroke="#e4e4e7" strokeWidth="2" />
+                    <text
+                      x="105"
+                      y="109"
+                      fontFamily="Bricolage Grotesque, Plus Jakarta Sans, sans-serif"
+                      fontSize="13"
+                      fontWeight="800"
+                      fill="#15803d"
+                      textAnchor="middle"
+                    >
+                      LFF
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="mt-3 text-sm font-bold text-zinc-900">
                   Lasdo Family Futsal
                 </div>
-                <div className="text-[11px] text-slate-500 font-mono">
-                  Nominal: Rp {bookingData.total_price.toLocaleString('id-ID')}
+                <div className="text-xs text-zinc-600 tabular-nums mt-0.5">
+                  Nominal: <strong className="text-zinc-900">{formatRupiah(bookingData.total_price)}</strong>
                 </div>
               </div>
 
-              <div className="text-xs text-slate-500 space-y-1">
+              <div className="text-xs text-zinc-500 space-y-1 pt-2 border-t border-stone-100">
                 <p>
-                  Dapat dipindai melalui <strong>BCA, Mandiri, BRI, BNI</strong>, serta e-wallet <strong>GoPay, OVO, Dana, ShopeePay</strong>.
+                  Dapat dipindai dari aplikasi BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, atau ShopeePay.
                 </p>
-                <p className="text-[11px] text-emerald-700 font-medium">
-                  Setelah bayar, status pesanan otomatis disinkronkan oleh pengelola UMKM.
+                <p className="text-emerald-800 font-medium">
+                  Setelah transfer, klik Perbarui untuk melihat status konfirmasi pengelola.
                 </p>
               </div>
             </div>

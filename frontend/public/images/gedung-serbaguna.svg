@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1216 684" fill="none">
+  <defs>
+    <!-- Warm terracotta plinth matching lapangan-futsal base -->
+    <linearGradient id="plinthTop" x1="314" y1="215" x2="902" y2="555" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3E3A36"/>
+      <stop offset="100%" stop-color="#2A2623"/>
+    </linearGradient>
+    <linearGradient id="plinthLeft" x1="314" y1="355" x2="660" y2="577" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8C481F"/>
+      <stop offset="100%" stop-color="#6B3414"/>
+    </linearGradient>
+    <linearGradient id="plinthRight" x1="660" y1="555" x2="902" y2="437" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6E3616"/>
+      <stop offset="100%" stop-color="#53270E"/>
+    </linearGradient>
+
+    <!-- Warm interior hall glow -->
+    <linearGradient id="hallFloor" x1="361" y1="355" x2="855" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C88D55"/>
+      <stop offset="55%" stop-color="#DFAA71"/>
+      <stop offset="100%" stop-color="#9E6A3A"/>
+    </linearGradient>
+    <linearGradient id="wallBackLeft" x1="361" y1="242" x2="560" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#52463D"/>
+      <stop offset="100%" stop-color="#3E342D"/>
+    </linearGradient>
+    <linearGradient id="wallBackRight" x1="560" y1="127" x2="855" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#685648"/>
+      <stop offset="100%" stop-color="#4A3D33"/>
+    </linearGradient>
+    <linearGradient id="roofDark" x1="361" y1="122" x2="760" y2="298" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B4248"/>
+      <stop offset="100%" stop-color="#23272B"/>
+    </linearGradient>
+    <linearGradient id="roofWarm" x1="456" y1="122" x2="855" y2="298" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4D545B"/>
+      <stop offset="100%" stop-color="#2D3237"/>
+    </linearGradient>
+    <linearGradient id="glassTint" x1="656" y1="412" x2="855" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F6C88A" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#9BC5BA" stop-opacity="0.22"/>
+    </linearGradient>
+    <radialGradient id="stageSpotlight" cx="56%" cy="58%" r="42%">
+      <stop offset="0%" stop-color="#FFE0A3" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FFE0A3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Pure Black Stage Backdrop -->
+  <rect width="1216" height="684" fill="#000000"/>
+
+  <!-- Isometric Base Plinth (Terracotta Rim + Dark Slate Plaza) -->
+  <polygon points="314,355 660,555 660,581 314,381" fill="url(#plinthLeft)"/>
+  <polygon points="660,555 902,415 902,441 660,581" fill="url(#plinthRight)"/>
+  <polygon points="556,215 902,415 660,555 314,355" fill="url(#plinthTop)" stroke="#9D5528" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Subtle Plaza Entrance Walkway -->
+  <polygon points="695,435 785,487 725,522 635,470" fill="#46413C"/>
+
+  <!-- Interior Hall Floor -->
+  <polygon points="560,240 855,410 656,525 361,355" fill="url(#hallFloor)"/>
+  <polygon points="560,240 855,410 656,525 361,355" fill="url(#stageSpotlight)"/>
+
+  <!-- Interior Wooden Plank Grid Lines -->
+  <g stroke="#7A4C24" stroke-opacity="0.28" stroke-width="1.2">
+    <line x1="410" y1="327" x2="705" y2="497"/>
+    <line x1="460" y1="298" x2="755" y2="468"/>
+    <line x1="510" y1="269" x2="805" y2="439"/>
+    <line x1="435" y1="398" x2="634" y2="283"/>
+    <line x1="509" y1="441" x2="708" y2="326"/>
+    <line x1="583" y1="484" x2="782" y2="369"/>
+  </g>
+
+  <!-- Back-Left Interior Wall -->
+  <polygon points="560,127 560,240 361,355 361,242" fill="url(#wallBackLeft)"/>
+  <!-- Back-Right Interior Wall -->
+  <polygon points="560,127 855,297 855,410 560,240" fill="url(#wallBackRight)"/>
+
+  <!-- Stage Platform at Back-Left Corner -->
+  <polygon points="480,286 560,240 628,279 548,325" fill="#8C481F"/>
+  <polygon points="480,286 548,325 548,337 480,298" fill="#5D2E12"/>
+  <polygon points="548,325 628,279 628,291 548,337" fill="#733916"/>
+  <!-- Stage Backdrop Panel -->
+  <polygon points="492,202 558,164 558,236 492,274" fill="#2A2420" stroke="#C5794B" stroke-opacity="0.65" stroke-width="1.5"/>
+  <polygon points="502,208 548,181 548,229 502,256" fill="#C5794B" fill-opacity="0.18"/>
+
+  <!-- Round Banquet / Event Tables Inside Hall -->
+  <g>
+    <!-- Table 1 -->
+    <ellipse cx="622" cy="368" rx="22" ry="13" fill="#B5804D"/>
+    <ellipse cx="622" cy="363" rx="22" ry="13" fill="#EDE3DA"/>
+    <circle cx="622" cy="362" r="4.5" fill="#C5794B"/>
+    <!-- Table 2 -->
+    <ellipse cx="705" cy="415" rx="22" ry="13" fill="#B5804D"/>
+    <ellipse cx="705" cy="410" rx="22" ry="13" fill="#EDE3DA"/>
+    <circle cx="705" cy="409" r="4.5" fill="#10b981"/>
+    <!-- Table 3 -->
+    <ellipse cx="556" cy="406" rx="22" ry="13" fill="#B5804D"/>
+    <ellipse cx="556" cy="401" rx="22" ry="13" fill="#EDE3DA"/>
+    <circle cx="556" cy="400" r="4.5" fill="#C5794B"/>
+    <!-- Table 4 -->
+    <ellipse cx="640" cy="452" rx="22" ry="13" fill="#B5804D"/>
+    <ellipse cx="640" cy="447" rx="22" ry="13" fill="#EDE3DA"/>
+    <circle cx="640" cy="446" r="4.5" fill="#10b981"/>
+  </g>
+
+  <!-- Left Gable Wall (Front-Left Cutaway Wall, Low Height for Visibility) -->
+  <polygon points="361,242 656,412 656,525 361,355" fill="#2F2B28" fill-opacity="0.88"/>
+  <!-- Tall Panoramic Windows on Front-Left Facade -->
+  <g fill="#F4C78D" fill-opacity="0.28" stroke="#EDE3DA" stroke-opacity="0.35" stroke-width="1.2">
+    <polygon points="384,274 434,303 434,376 384,347"/>
+    <polygon points="452,313 502,342 502,415 452,386"/>
+    <polygon points="520,352 570,381 570,454 520,425"/>
+    <polygon points="588,391 638,420 638,493 588,464"/>
+  </g>
+
+  <!-- Front-Right Glass Curtain Entrance Facade -->
+  <polygon points="656,412 855,297 855,410 656,525" fill="url(#glassTint)" stroke="#EDE3DA" stroke-opacity="0.35" stroke-width="1.5"/>
+  <!-- Facade Mullions & Canopy -->
+  <g stroke="#3A3531" stroke-width="3">
+    <line x1="705" y1="384" x2="705" y2="497"/>
+    <line x1="755" y1="355" x2="755" y2="468"/>
+    <line x1="805" y1="326" x2="805" y2="439"/>
+  </g>
+  <!-- Warm Entrance Canopy -->
+  <polygon points="710,418 796,368 820,382 734,432" fill="#8C481F"/>
+  <polygon points="710,418 734,432 734,438 710,424" fill="#5D2E12"/>
+  <polygon points="734,432 820,382 820,388 734,438" fill="#6E3616"/>
+
+  <!-- Architectural Pitched Roof (Left-Back Section + Skylight Cutaway) -->
+  <!-- Back-Right Roof Slope (Partial Overhang) -->
+  <polygon points="456,122 759,297 865,294 562,119" fill="url(#roofWarm)" stroke="#626A72" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Front-Left Roof Slope (Cutaway leaving front-center open to show interior) -->
+  <polygon points="456,122 578,192 483,312 355,246" fill="url(#roofDark)" stroke="#555C63" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Gable Triangle Over Back Wall -->
+  <polygon points="361,242 460,124 560,127" fill="#322C28" stroke="#555C63" stroke-width="1.2"/>
+  <!-- Warm Skylight Strip on Roof -->
+  <polygon points="545,175 725,279 742,272 562,168" fill="#F3C583" fill-opacity="0.72"/>
+
+  <!-- Exposed Interior Steel Roof Trusses -->
+  <g stroke="#7A828A" stroke-opacity="0.7" stroke-width="2" stroke-linecap="round">
+    <line x1="494" y1="318" x2="592" y2="199"/>
+    <line x1="592" y1="199" x2="693" y2="204"/>
+    <line x1="573" y1="364" x2="674" y2="247"/>
+    <line x1="674" y1="247" x2="772" y2="250"/>
+  </g>
+</svg>

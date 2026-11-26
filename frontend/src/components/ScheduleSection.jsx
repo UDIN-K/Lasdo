@@ -1,152 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle, 
-  Sparkles, ShieldCheck, ArrowRight, Check, AlertTriangle, Building2, User, Phone, FileText 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  Copy,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 import { fetchSchedule, createBooking } from '../services/api';
+import {
+  buildQuickDates,
+  computePreviewPrice,
+  formatHour,
+  formatHourRange,
+  formatRupiah,
+  getDurationOptions,
+  isValidIndonesianPhone,
+} from '../utils/bookingHelpers';
 
 export default function ScheduleSection({ onBookingSuccess }) {
-  // Tanggal terpilih (format YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   });
 
-  // Jenis layanan ('futsal' | 'serbaguna')
   const [serviceType, setServiceType] = useState('futsal');
-
-  // State data jadwal dari API
   const [scheduleData, setScheduleData] = useState(null);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const [scheduleError, setScheduleError] = useState(null);
-
-  // Peringatan bentrok saat klik slot terisi
   const [clashWarning, setClashWarning] = useState(null);
 
-  // Form State
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [startHour, setStartHour] = useState(19);
   const [duration, setDuration] = useState(1);
   const [eventNotes, setEventNotes] = useState('');
 
-  // Status submission booking
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [createdBooking, setCreatedBooking] = useState(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  // 7 Hari Cepat
-  const quickDates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
-    const dayName = new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(d);
-    const dayNumber = d.getDate();
-    const monthName = new Intl.DateTimeFormat('id-ID', { month: 'short' }).format(d);
-    return {
-      dateStr,
-      label: i === 0 ? 'Hari Ini' : i === 1 ? 'Besok' : dayName,
-      dateFormatted: `${dayNumber} ${monthName}`,
-    };
-  });
+  const quickDates = useMemo(() => buildQuickDates(7), []);
 
-  // Fetch jadwal setiap tanggal berubah
-  useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      setIsLoadingSchedule(true);
-      setScheduleError(null);
-      setClashWarning(null);
-      try {
-        const data = await fetchSchedule(selectedDate);
-        if (isMounted) {
-          setScheduleData(data);
-          // Set startHour ke slot pertama yang tersedia
-          const firstAvailable = data.slots.find((s) => s.isAvailable);
-          if (firstAvailable) {
-            setStartHour(firstAvailable.hour);
-          }
-        }
-      } catch (err) {
-        if (isMounted) {
-          setScheduleError(err.message || 'Gagal mengambil data jadwal.');
-        }
-      } finally {
-        if (isMounted) setIsLoadingSchedule(false);
+  const loadSchedule = async (dateToLoad = selectedDate) => {
+    setIsLoadingSchedule(true);
+    setScheduleError(null);
+    setClashWarning(null);
+    try {
+      const data = await fetchSchedule(dateToLoad);
+      setScheduleData(data);
+      const firstAvailable = data.slots.find((s) => s.isAvailable);
+      if (firstAvailable) {
+        setStartHour(firstAvailable.hour);
+        setDuration(1);
       }
+    } catch (err) {
+      setScheduleError(err.message || 'Gagal memuat jadwal.');
+    } finally {
+      setIsLoadingSchedule(false);
     }
-    load();
-    return () => {
-      isMounted = false;
-    };
+  };
+
+  useEffect(() => {
+    loadSchedule(selectedDate);
   }, [selectedDate]);
 
-  // Handle Klik Slot di Grid
+  const durationOptions = useMemo(() => {
+    return getDurationOptions(scheduleData?.slots || [], startHour, 5);
+  }, [scheduleData, startHour]);
+
+  useEffect(() => {
+    if (durationOptions.length === 0) return;
+    const currentOpt = durationOptions.find((opt) => opt.duration === duration);
+    if (!currentOpt || !currentOpt.isAvailable) {
+      const firstValid = durationOptions.find((opt) => opt.isAvailable);
+      if (firstValid) setDuration(firstValid.duration);
+    }
+  }, [durationOptions, duration]);
+
+  const preview = useMemo(
+    () => computePreviewPrice(scheduleData, serviceType, startHour, duration),
+    [scheduleData, serviceType, startHour, duration]
+  );
+
   const handleSlotClick = (slot) => {
     if (!slot.isAvailable) {
+      const nextFree = scheduleData?.slots.find((s) => s.isAvailable && s.hour > slot.hour)
+        || scheduleData?.slots.find((s) => s.isAvailable);
       setClashWarning({
         hour: slot.timeLabel,
-        customer: slot.booking?.customer_name || 'Penyewa Terdaftar',
         service: slot.booking?.service_type === 'serbaguna' ? 'Gedung Serbaguna' : 'Futsal',
-        code: slot.booking?.booking_code || '',
+        nextFreeHour: nextFree ? nextFree.hour : null,
       });
       return;
     }
 
     setClashWarning(null);
+    setBookingError(null);
     setStartHour(slot.hour);
-    // Jika durasi sekarang membuat melebihi jam 22, sesuaikan durasi
-    if (slot.hour + duration > 22) {
-      setDuration(Math.max(1, 22 - slot.hour));
-    }
   };
 
-  // Hitung Estimasi Total Harga Terkunci di Form Preview
-  const calculatePreviewPrice = () => {
-    if (!scheduleData || !scheduleData.slots) return { total: 0, perHour: 0, breakdown: [] };
-    const breakdown = [];
-    let total = 0;
+  const phoneIsValid = !phoneNumber || isValidIndonesianPhone(phoneNumber);
+  const selectedDurationValid = durationOptions.find((d) => d.duration === duration)?.isAvailable ?? true;
 
-    for (let i = 0; i < duration; i++) {
-      const h = startHour + i;
-      if (h >= 22) break;
-      const slot = scheduleData.slots.find((s) => s.hour === h);
-      let rate = 0;
-      let label = '';
-
-      if (serviceType === 'serbaguna') {
-        rate = slot ? slot.serbagunaPrice : 300000;
-        label = 'Gedung Serbaguna';
-      } else {
-        rate = slot ? slot.futsalPrice : 100000;
-        label = scheduleData.isWeekend
-          ? 'Akhir Pekan'
-          : scheduleData.holiday.isHoliday
-          ? `Libur (${scheduleData.holiday.name})`
-          : h >= 17
-          ? 'Futsal Malam'
-          : 'Futsal Siang';
-      }
-
-      total += rate;
-      breakdown.push({
-        time: `${String(h).padStart(2, '0')}:00 - ${String(h + 1).padStart(2, '0')}:00`,
-        rate,
-        label,
-      });
-    }
-
-    const perHour = duration > 0 ? Math.round(total / duration) : 0;
-    return { total, perHour, breakdown };
-  };
-
-  const preview = calculatePreviewPrice();
-
-  // Submit Booking
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setPhoneTouched(true);
     setBookingError(null);
 
+    if (!isValidIndonesianPhone(phoneNumber)) {
+      setBookingError('Masukkan nomor WhatsApp Indonesia yang valid (contoh: 081234567890).');
+      return;
+    }
+
+    if (!selectedDurationValid) {
+      setBookingError('Durasi yang dipilih bertabrakan dengan jam yang sudah terisi.');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const res = await createBooking({
         customer_name: customerName,
@@ -159,12 +136,11 @@ export default function ScheduleSection({ onBookingSuccess }) {
       });
 
       setCreatedBooking(res.data);
-      // Refresh jadwal
       const updatedSchedule = await fetchSchedule(selectedDate);
       setScheduleData(updatedSchedule);
 
       if (onBookingSuccess) {
-        onBookingSuccess(res.data.booking.booking_code);
+        onBookingSuccess(res.data.booking.booking_code, false);
       }
     } catch (err) {
       setBookingError(err.message || 'Gagal mengajukan pemesanan.');
@@ -173,43 +149,61 @@ export default function ScheduleSection({ onBookingSuccess }) {
     }
   };
 
+  const handleResetForNewBooking = () => {
+    setCreatedBooking(null);
+    setCustomerName('');
+    setPhoneNumber('');
+    setPhoneTouched(false);
+    setEventNotes('');
+    setBookingError(null);
+    const firstAvailable = scheduleData?.slots.find((s) => s.isAvailable);
+    if (firstAvailable) {
+      setStartHour(firstAvailable.hour);
+      setDuration(1);
+    }
+  };
+
+  const handleCopyBookingCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
   return (
-    <section id="jadwal" className="py-14 bg-white border-b border-slate-200 scroll-mt-20">
+    <section id="jadwal" className="py-12 bg-[#fafaf8] border-b border-stone-200 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Bagian 01 */}
-        <div className="max-w-3xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-            Bagian 01
-          </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Ketersediaan Jadwal & Formulir Pemesanan
+        {/* Direct Heading */}
+        <div className="max-w-2xl mb-7">
+          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            Jadwal & Pemesanan
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 mt-2">
-            Pilih tanggal dan slot jam operasional (<span className="font-mono font-semibold">08:00 – 22:00 WIB</span>). Sistem memverifikasi bentrok jadwal secara otomatis dan mengunci tarif Anda.
+          <p className="text-sm sm:text-base text-zinc-600 mt-1.5">
+            Pilih tanggal, lalu klik jam mulai yang masih kosong untuk mengisi data pemesanan.
           </p>
         </div>
 
-        {/* Kontrol Tanggal & Jenis Layanan */}
-        <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 mb-8 space-y-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* 7 Hari Cepat */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+        {/* Date & Service Toolbar */}
+        <div className="bg-white p-4 sm:p-5 rounded-lg border border-stone-200 mb-7 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
               {quickDates.map((item) => {
                 const isSelected = selectedDate === item.dateStr;
                 return (
                   <button
                     key={item.dateStr}
+                    type="button"
                     onClick={() => setSelectedDate(item.dateStr)}
-                    className={`px-3.5 py-2.5 rounded-xl text-left shrink-0 transition-all ${
+                    aria-pressed={isSelected}
+                    className={`px-3.5 py-2 rounded-md text-left shrink-0 transition-colors cursor-pointer border ${
                       isSelected
-                        ? 'bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
-                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        ? 'bg-emerald-700 border-emerald-700 text-white'
+                        : 'bg-stone-50 border-stone-200 text-zinc-700 hover:bg-stone-100'
                     }`}
                   >
-                    <span className="text-[10px] uppercase font-bold block opacity-80">
+                    <span className={`text-[11px] font-medium block ${isSelected ? 'text-emerald-100' : 'text-zinc-500'}`}>
                       {item.label}
                     </span>
-                    <span className="text-xs sm:text-sm font-semibold block">
+                    <span className="text-xs sm:text-sm font-bold block whitespace-nowrap">
                       {item.dateFormatted}
                     </span>
                   </button>
@@ -217,391 +211,449 @@ export default function ScheduleSection({ onBookingSuccess }) {
               })}
             </div>
 
-            {/* Custom Date Picker */}
             <div className="flex items-center gap-2 shrink-0">
-              <CalendarIcon className="w-4 h-4 text-slate-500" />
+              <label htmlFor="custom-date-picker" className="text-xs font-medium text-zinc-600">
+                Tanggal Lain:
+              </label>
               <input
+                id="custom-date-picker"
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                className="bg-stone-50 border border-stone-300 rounded-md px-3 py-2 text-xs sm:text-sm font-medium text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700"
               />
             </div>
           </div>
 
-          {/* Service Toggle & Status Hari */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-3 border-t border-slate-200">
-            {/* Service Toggle */}
-            <div className="inline-flex p-1 rounded-xl bg-slate-200/80 border border-slate-300">
-              <button
-                type="button"
-                onClick={() => setServiceType('futsal')}
-                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
-                  serviceType === 'futsal'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                ⚽ Futsal Reguler
-              </button>
-              <button
-                type="button"
-                onClick={() => setServiceType('serbaguna')}
-                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
-                  serviceType === 'serbaguna'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-slate-700 hover:text-slate-900'
-                }`}
-              >
-                🏛️ Gedung Serbaguna (Acara)
-              </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-stone-200">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-medium text-zinc-500">Layanan:</span>
+              <div className="inline-flex p-1 rounded-md bg-stone-100 border border-stone-200" role="group" aria-label="Pilih Jenis Layanan">
+                <button
+                  type="button"
+                  onClick={() => setServiceType('futsal')}
+                  aria-pressed={serviceType === 'futsal'}
+                  className={`px-3.5 py-1.5 rounded text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    serviceType === 'futsal'
+                      ? 'bg-white text-zinc-900 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  Lapangan Futsal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServiceType('serbaguna')}
+                  aria-pressed={serviceType === 'serbaguna'}
+                  className={`px-3.5 py-1.5 rounded text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    serviceType === 'serbaguna'
+                      ? 'bg-white text-zinc-900 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  Gedung Serbaguna
+                </button>
+              </div>
             </div>
 
-            {/* Status Hari Libur / Akhir Pekan */}
             {scheduleData && (
-              <div className="text-xs flex items-center gap-2">
-                {scheduleData.holiday?.isHoliday ? (
-                  <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-semibold border border-red-200">
-                    🎉 Libur Nasional: {scheduleData.holiday.name}
-                  </span>
-                ) : scheduleData.isWeekend ? (
-                  <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-200">
-                    🗓️ Akhir Pekan (Sabtu / Minggu)
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                    💼 Hari Kerja (Senin – Jumat)
-                  </span>
-                )}
-                <span className="text-slate-500 hidden sm:inline">
-                  • {scheduleData.availableSlotsCount} slot tersedia
+              <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+                <span className="font-semibold text-zinc-800">
+                  {scheduleData.holiday?.isHoliday
+                    ? `Libur Nasional: ${scheduleData.holiday.name}`
+                    : scheduleData.isWeekend
+                    ? 'Akhir Pekan (Tarif Weekend)'
+                    : 'Hari Kerja (Senin – Jumat)'}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="font-semibold text-emerald-800 tabular-nums">
+                  {scheduleData.availableSlotsCount} dari {scheduleData.totalSlots} jam kosong
                 </span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Peringatan Bentrok Jadwal Realtime (Jika klik slot terisi) */}
+        {/* Inline Clash Notice */}
         {clashWarning && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start gap-3 animate-shake">
-            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <strong className="font-bold block">Pencegahan Bentrok Aktif: Slot Sudah Terisi!</strong>
-              <span>
-                Slot jam <strong className="font-mono">{clashWarning.hour}</strong> sudah dibooking untuk <strong>{clashWarning.service}</strong> ({clashWarning.code} - {clashWarning.customer}). Silakan klik slot lain yang berwarna hijau (Tersedia).
-              </span>
+          <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-xs sm:text-sm">
+                <strong className="font-bold block">Jam {clashWarning.hour} sudah terisi ({clashWarning.service})</strong>
+                <span className="text-amber-900">
+                  Silakan pilih jam lain yang masih kosong.
+                </span>
+              </div>
             </div>
-            <button
-              onClick={() => setClashWarning(null)}
-              className="ml-auto text-xs text-red-600 font-bold hover:underline"
-            >
-              Tutup
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {clashWarning.nextFreeHour && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartHour(clashWarning.nextFreeHour);
+                    setClashWarning(null);
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-amber-800 hover:bg-amber-900 text-white text-xs font-semibold cursor-pointer"
+                >
+                  Pilih Jam {formatHour(clashWarning.nextFreeHour)}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setClashWarning(null)}
+                className="text-xs font-semibold text-amber-800 hover:underline cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Kolom Kiri: Grid 14 Slot Jam (08:00 - 21:00) */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-700" />
-                <span>Peta Slot Jam Operasional (08:00 - 22:00)</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+          {/* Timetable Slots Grid */}
+          <div className="lg:col-span-7 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-bold text-zinc-900">
+                Pilih Jam Mulai (08:00 – 22:00)
               </h3>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-4 text-xs text-zinc-600">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-                  Tersedia
+                  <span className="w-3 h-3 rounded-xs border border-stone-300 bg-white inline-block" />
+                  Kosong
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                  <span className="w-3 h-3 rounded-xs bg-emerald-700 inline-block" />
+                  Dipilih
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-xs bg-stone-200 inline-block" />
                   Terisi
                 </span>
               </div>
             </div>
 
             {isLoadingSchedule ? (
-              <div className="p-12 text-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
-                <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                <p className="text-sm font-medium">Memuat ketersediaan slot...</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {Array.from({ length: 12 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="h-16 rounded-lg border border-stone-200 bg-white p-3 animate-pulse space-y-2"
+                  >
+                    <div className="h-3.5 w-24 bg-stone-200 rounded" />
+                    <div className="h-3 w-16 bg-stone-100 rounded" />
+                  </div>
+                ))}
               </div>
             ) : scheduleError ? (
-              <div className="p-6 text-center rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">
+              <div className="p-6 text-center rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm space-y-3">
                 <p>{scheduleError}</p>
+                <button
+                  type="button"
+                  onClick={() => loadSchedule(selectedDate)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-red-700 text-white text-xs font-semibold hover:bg-red-800 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Coba Muat Ulang
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {scheduleData?.slots.map((slot) => {
-                  const isSelectedStart = slot.hour === startHour;
+                  const isSelectedStart = slot.isAvailable && slot.hour === startHour;
                   const isWithinSelectedRange =
-                    slot.hour >= startHour && slot.hour < startHour + duration;
+                    slot.isAvailable && slot.hour >= startHour && slot.hour < startHour + duration;
                   const priceToShow =
                     serviceType === 'serbaguna' ? slot.serbagunaPrice : slot.futsalPrice;
 
                   return (
-                    <div
+                    <button
                       key={slot.hour}
+                      type="button"
                       onClick={() => handleSlotClick(slot)}
-                      className={`relative p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                      aria-pressed={isWithinSelectedRange}
+                      aria-label={`Slot ${slot.timeLabel}, ${
+                        slot.isAvailable ? `Tersedia, ${formatRupiah(priceToShow)}` : 'Sudah Terisi'
+                      }`}
+                      className={`px-3.5 py-3 rounded-lg border text-left transition-colors cursor-pointer ${
                         !slot.isAvailable
-                          ? 'bg-red-50/70 border-red-200 opacity-90 hover:border-red-400'
+                          ? 'bg-stone-100 border-stone-200 text-zinc-400 hover:border-stone-300'
                           : isWithinSelectedRange
-                          ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500 shadow-xs'
-                          : 'bg-white border-slate-200 hover:border-emerald-300 hover:shadow-xs'
+                          ? 'bg-emerald-700 border-emerald-700 text-white'
+                          : 'bg-white border-stone-200 text-zinc-900 hover:border-emerald-600'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-xs sm:text-sm font-bold tabular-nums ${
+                            !slot.isAvailable
+                              ? 'text-zinc-400 line-through'
+                              : isWithinSelectedRange
+                              ? 'text-white'
+                              : 'text-zinc-900'
+                          }`}
+                        >
                           {slot.timeLabel}
                         </span>
-                        {slot.isAvailable ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Tersedia
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
-                            <XCircle className="w-3 h-3" />
-                            Terisi
-                          </span>
+                        {isSelectedStart && (
+                          <span className="text-[11px] font-semibold text-emerald-100">Mulai</span>
+                        )}
+                        {!isSelectedStart && isWithinSelectedRange && (
+                          <span className="text-[11px] font-semibold text-emerald-100">Dipilih</span>
                         )}
                       </div>
 
-                      <div className="flex items-end justify-between mt-2 pt-2 border-t border-slate-100">
-                        <span className="font-mono text-xs font-semibold text-slate-600 tabular-nums">
-                          Rp {priceToShow.toLocaleString('id-ID')}
-                        </span>
-                        {slot.isAvailable && isSelectedStart && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                            Mulai
+                      <div className="mt-1 text-xs tabular-nums">
+                        {slot.isAvailable ? (
+                          <span className={isWithinSelectedRange ? 'text-emerald-100' : 'text-zinc-600'}>
+                            {formatRupiah(priceToShow)}
                           </span>
-                        )}
-                        {!slot.isAvailable && (
-                          <span className="text-[10px] font-medium text-red-700 truncate max-w-[80px]">
-                            {slot.booking?.customer_name || 'Terisi'}
+                        ) : (
+                          <span className="text-zinc-500">
+                            Terisi ({slot.booking?.service_type === 'serbaguna' ? 'Acara' : 'Futsal'})
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
 
-          {/* Kolom Kanan: Formulir Pemesanan & Rincian Harga Terkunci */}
+          {/* Booking Form */}
           <div id="pesan" className="lg:col-span-5 scroll-mt-24">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-1">
-                <Building2 className="w-5 h-5 text-emerald-700" />
-                <span>Formulir Pemesanan</span>
-              </h3>
-              <p className="text-xs text-slate-500 mb-5">
-                Isi data diri pemesan. Total harga akan dikunci permanen di sistem.
-              </p>
-
-              {/* Success Alert / Booking Receipt */}
-              {createdBooking && (
-                <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    <span>Pesanan Berhasil Diajukan!</span>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-emerald-200 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Kode Booking:</span>
-                      <span className="font-mono font-bold text-emerald-800 text-sm">
-                        {createdBooking.booking.booking_code}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Nama:</span>
-                      <span className="font-semibold text-slate-800">
-                        {createdBooking.booking.customer_name}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Jadwal:</span>
-                      <span className="font-mono text-slate-800">
-                        {createdBooking.booking.date} ({String(createdBooking.booking.start_hour).padStart(2, '0')}:00 – {String(createdBooking.booking.end_hour).padStart(2, '0')}:00)
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-1 border-t border-slate-100">
-                      <span className="text-slate-500 font-medium">Total Terkunci:</span>
-                      <span className="font-mono font-bold text-emerald-700 text-sm">
-                        Rp {createdBooking.booking.total_price.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-emerald-800 leading-tight">
-                    Silakan simpan kode booking Anda dan lanjutkan pembayaran via QRIS di bagian bawah.
-                  </p>
-                </div>
-              )}
-
-              {/* Error Alert */}
-              {bookingError && (
-                <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <strong className="font-bold block">Pemesanan Gagal</strong>
-                    <span>{bookingError}</span>
-                  </div>
-                </div>
-              )}
-
-              <form onSubmit={handleBookingSubmit} className="space-y-4 text-xs sm:text-sm">
-                {/* Nama Pemesan */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nama Pemesan / Komunitas <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Fidel Khalid / Garuda Futsal"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm"
-                    />
-                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  </div>
-                </div>
-
-                {/* Nomor WhatsApp */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nomor WhatsApp Aktif <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Contoh: 081234567890"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm font-mono"
-                    />
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  </div>
-                  <span className="text-[11px] text-slate-500 mt-0.5 block">
-                    Digunakan untuk konfirmasi pesanan dan pelacakan QRIS.
-                  </span>
-                </div>
-
-                {/* Jam Mulai & Durasi */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Jam Mulai <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={startHour}
-                      onChange={(e) => {
-                        const h = parseInt(e.target.value, 10);
-                        setStartHour(h);
-                        if (h + duration > 22) setDuration(Math.max(1, 22 - h));
-                      }}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm font-mono"
-                    >
-                      {Array.from({ length: 14 }, (_, i) => i + 8).map((h) => (
-                        <option key={h} value={h}>
-                          {String(h).padStart(2, '0')}:00 WIB
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Durasi Sewa <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={duration}
-                      onChange={(e) => setDuration(parseInt(e.target.value, 10))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm"
-                    >
-                      {[1, 2, 3, 4, 5]
-                        .filter((d) => startHour + d <= 22)
-                        .map((d) => (
-                          <option key={d} value={d}>
-                            {d} Jam (s/d {String(startHour + d).padStart(2, '0')}:00)
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Catatan Tambahan */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Catatan Acara / Kebutuhan (Opsional)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Contoh: Sparing kantor / Butuh sound system"
-                      value={eventNotes}
-                      onChange={(e) => setEventNotes(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm"
-                    />
-                    <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  </div>
-                </div>
-
-                {/* Pratinjau Harga Terkunci (Price Locking Preview) */}
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Layanan:</span>
-                    <span className="font-semibold text-slate-800">
-                      {serviceType === 'serbaguna' ? 'Gedung Serbaguna' : 'Futsal Reguler'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Rentang Waktu:</span>
-                    <span className="font-mono font-semibold text-slate-800">
-                      {String(startHour).padStart(2, '0')}:00 – {String(startHour + duration).padStart(2, '0')}:00 ({duration} Jam)
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Rata-rata / Jam:</span>
-                    <span className="font-mono font-semibold text-slate-800">
-                      Rp {preview.perHour.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="bg-white border border-stone-200 rounded-lg p-5 sm:p-6">
+              {createdBooking ? (
+                <div className="space-y-5">
+                  <div className="flex items-start gap-3 pb-4 border-b border-stone-200">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-xs font-bold text-slate-900 block">Total Tagihan:</span>
-                      <span className="text-[10px] text-emerald-700 font-medium">Terkunci di database</span>
+                      <h3 className="font-heading font-bold text-lg text-zinc-900">
+                        Pesanan Berhasil Dibuat
+                      </h3>
+                      <p className="text-xs text-zinc-600 mt-0.5">
+                        Simpan kode booking di bawah untuk pembayaran QRIS.
+                      </p>
                     </div>
-                    <span className="font-mono text-lg font-black text-emerald-700 tabular-nums">
-                      Rp {preview.total.toLocaleString('id-ID')}
-                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs sm:text-sm">
+                    <div className="flex items-center justify-between py-2 border-b border-stone-100">
+                      <span className="text-zinc-500">Kode Booking</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-emerald-800 text-base">
+                          {createdBooking.booking.booking_code}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyBookingCode(createdBooking.booking.booking_code)}
+                          aria-label="Salin kode booking"
+                          className="p-1.5 rounded text-zinc-500 hover:text-emerald-700 hover:bg-stone-100 cursor-pointer"
+                        >
+                          {copiedCode ? <Check className="w-4 h-4 text-emerald-700" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-zinc-500">Nama Pemesan</span>
+                      <span className="font-semibold text-zinc-900">{createdBooking.booking.customer_name}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-zinc-500">Tanggal & Jam</span>
+                      <span className="font-semibold text-zinc-900 tabular-nums">
+                        {createdBooking.booking.date} ({formatHour(createdBooking.booking.start_hour)} – {formatHour(createdBooking.booking.end_hour)})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-stone-200">
+                      <span className="font-bold text-zinc-900">Total Bayar</span>
+                      <span className="font-heading text-lg font-bold text-emerald-800 tabular-nums">
+                        {formatRupiah(createdBooking.booking.total_price)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onBookingSuccess) {
+                          onBookingSuccess(createdBooking.booking.booking_code, true);
+                        }
+                      }}
+                      className="w-full py-3 px-4 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm transition-colors cursor-pointer"
+                    >
+                      Lanjut Bayar QRIS
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetForNewBooking}
+                      className="w-full py-2.5 px-4 rounded-md bg-stone-100 hover:bg-stone-200 text-zinc-700 font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
+                    >
+                      Buat Pesanan Lain
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-zinc-900">
+                      Detail Pemesanan
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Isi data di bawah sesuai jam yang dipilih.
+                    </p>
+                  </div>
 
-                {/* Tombol Submit */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Sedang memproses pesanan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Ajukan Pemesanan & Kunci Jadwal</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+                  {bookingError && (
+                    <div role="alert" className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <span>{bookingError}</span>
+                    </div>
                   )}
-                </button>
-              </form>
+
+                  <form onSubmit={handleBookingSubmit} className="space-y-3.5 text-xs sm:text-sm">
+                    <div>
+                      <label htmlFor="booking-customer-name" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                        Nama Pemesan atau Tim <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        id="booking-customer-name"
+                        type="text"
+                        required
+                        minLength={2}
+                        placeholder="Contoh: Fidel Khalid / Garuda FC"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-300 rounded-md px-3 py-2.5 text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="booking-phone" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                        Nomor WhatsApp <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        id="booking-phone"
+                        type="tel"
+                        required
+                        placeholder="Contoh: 081234567890"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        onBlur={() => setPhoneTouched(true)}
+                        className={`w-full bg-stone-50 border rounded-md px-3 py-2.5 text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 text-sm tabular-nums ${
+                          phoneTouched && !phoneIsValid
+                            ? 'border-red-400 focus:ring-red-500'
+                            : 'border-stone-300 focus:ring-emerald-700'
+                        }`}
+                      />
+                      {phoneTouched && !phoneIsValid && (
+                        <p className="text-[11px] text-red-600 mt-1">
+                          Gunakan nomor HP Indonesia yang valid (08... atau +62...).
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="booking-start-hour" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                          Jam Mulai
+                        </label>
+                        <select
+                          id="booking-start-hour"
+                          value={startHour}
+                          onChange={(e) => setStartHour(parseInt(e.target.value, 10))}
+                          className="w-full bg-stone-50 border border-stone-300 rounded-md px-2.5 py-2.5 text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 text-xs sm:text-sm tabular-nums"
+                        >
+                          {(scheduleData?.slots || Array.from({ length: 14 }, (_, i) => ({ hour: i + 8, isAvailable: true }))).map(
+                            (s) => (
+                              <option key={s.hour} value={s.hour} disabled={!s.isAvailable}>
+                                {formatHour(s.hour)} WIB {!s.isAvailable ? '(Terisi)' : ''}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="booking-duration" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                          Durasi Sewa
+                        </label>
+                        <select
+                          id="booking-duration"
+                          value={duration}
+                          onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                          className="w-full bg-stone-50 border border-stone-300 rounded-md px-2.5 py-2.5 text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 text-xs sm:text-sm"
+                        >
+                          {durationOptions.map((opt) => (
+                            <option key={opt.duration} value={opt.duration} disabled={!opt.isAvailable}>
+                              {opt.label} {!opt.isAvailable ? `(Bentrok ${formatHour(opt.conflictHour)})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="booking-notes" className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                        Catatan <span className="text-zinc-400 font-normal">(Opsional)</span>
+                      </label>
+                      <input
+                        id="booking-notes"
+                        type="text"
+                        placeholder="Contoh: Sparing rutin / butuh sound system"
+                        value={eventNotes}
+                        onChange={(e) => setEventNotes(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-300 rounded-md px-3 py-2.5 text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 text-sm"
+                      />
+                    </div>
+
+                    {/* Clean Ledger Price Summary */}
+                    <div className="pt-4 border-t border-stone-200 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-zinc-600">
+                        <span>Layanan & Jam</span>
+                        <span className="font-semibold text-zinc-900 tabular-nums">
+                          {serviceType === 'serbaguna' ? 'Gedung Serbaguna' : 'Futsal'} · {formatHourRange(startHour, duration)}
+                        </span>
+                      </div>
+
+                      {preview.breakdown.map((item) => (
+                        <div key={item.hour} className="flex items-center justify-between text-xs text-zinc-500">
+                          <span>
+                            {item.time} ({item.label})
+                          </span>
+                          <span className="tabular-nums">{formatRupiah(item.rate)}</span>
+                        </div>
+                      ))}
+
+                      <div className="pt-3 border-t border-stone-200 flex items-center justify-between">
+                        <span className="text-sm font-bold text-zinc-900">Total Bayar</span>
+                        <span className="font-heading text-xl font-bold text-emerald-800 tabular-nums">
+                          {formatRupiah(preview.total)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !selectedDurationValid}
+                      className="w-full py-3 px-4 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Memproses Pesanan...</span>
+                        </>
+                      ) : (
+                        <span>Buat Pesanan</span>
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         </div>
