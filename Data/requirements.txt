@@ -1,0 +1,5 @@
+pandas
+matplotlib
+holidays
+seaborn
+numpy

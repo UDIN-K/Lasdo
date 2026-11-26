@@ -1,0 +1,41 @@
+==================================================================
+LATAR BELAKANG 
+==================================================================
+
+Proyek Capstone ini bertujuan untuk membantu UMKM "Lasdo Family" terkait digitaliasi proses pemesanan guna meminimalisir kesalahan order lahan sewa, 
+dan memprediksi kemungkinan jam, dan hari yang akan ramai.
+
+Dikarnakan pihak UMKM belum merespon quetioner dari tim Data Science yang menyebakan data asli yaitu record pemesanan lahan sewa belum tersedia.
+
+Untuk menangani permasalahan tersebut tim Data Science menggunakan data "Shared Bike, table days.csv" dan menyesuikannya dengan kebutuhan, dan tujuan tim 
+yaitu memprediksi kemungkinan jam, dan hari yang akan ramai. Hasil dari penyesuian table days.csv akan menghasilkan data_booking_per_jam.csv (Table yang akan digunakan untuk EDA dan Visualization)
+dan juga data yang akan Tim AI Agent pake.
+
+==================================================================
+MENYESUIKAN KOLOM-KOLOM DATASET day.csv UNTUK KEPERLUAN CAPSTONE PROJECT
+==================================================================
+
+A. Menghapus kolom (weathersit,temp,atemp,hum,windspeed,casual,registered) pada dataset (day.csv) ✅
+
+B. Mengganti kolom (yr) pada dataset (day.csv): ✅
+	-  sebelum: yr = year (0: 2011, 1:2012)
+       sesudah: yr = year (0: 2024, 1:2015)
+
+C. Menyesuikan kolom (dteday, mnth, holiday, weekday, workingday) pada dataset (day.csv): ✅
+    - Mengganti data dteday menjadi data tahun 2024 dan 2025
+    - Mengganti data kolom sisanya dengan menyesuikan dteday
+
+D. Menyesuaikan kolom (season, weathersit) dengan daerah indonesia pada dataset (day.csv): ✅
+    - season: 1 = Summer, 2 = Summer, 3 = Rainy, 4 = Rainy
+    - weathersit: (rencana akan di hapus karena tidak relevan dengan daerah indonesia)
+
+==================================================================
+NOTE
+==================================================================
+
+- Semua penyesuian kolom di lakukan pada file ../adjusment_table_analysis.ipynb sehingga file tersebut adalah file utama yang digunakan untuk 
+    - EDA
+    - Data Visualization
+    - Conclusion
+
+- Dataset hasil penyesuian table day.csv adalah data_booking_per_jam.csv yang digunakan untuk analisis.
