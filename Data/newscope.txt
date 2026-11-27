@@ -1,2 +1,2 @@
 1. Validasi perubahan kolom jam mulai dan jam selesai
-2. Perubahan Kolom Jenis Penggunaan menjadi lebih random seperti futsal yang dominan kemudian frekuensi kemunculan acara yang lebih sedikit kurang lebih 1-3 bulan baru muncul 1-2x acara dengan durasi random bisa perjam, harian, bahkan mingguan.
+2. Perubahan Kolom Jenis Penggunaan menjadi lebih random seperti futsal yang dominan kemudian frekuensi kemunculan acara yang lebih sedikit kurang lebih 1-3 bulan baru muncul 1-2x acara dengan durasi random bisa full seharian, bahkan mingguan bukan perjam.
