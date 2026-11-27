@@ -1,2 +1,2 @@
 1. Validasi perubahan kolom jam mulai dan jam selesai
-2. Perubahan Kolom Jenis Penggunaan menjadi lebih random seperti futsal yang dominan kemudian frekuensi kemunculan acara yang lebih sedikit kurang lebih 1-3 bulan baru muncul 1-2x acara dengan durasi random bisa full seharian, bahkan mingguan bukan perjam.
+2. Perubahan Kolom Jenis Penggunaan menjadi lebih random seperti "acara" muncul 1-2x per 1-3 bulan, tiap kemunculan berdurasi 1 hari sampai beberapa hari berturutan (misal 1-5 hari), dan di hari-hari itu semua slot jam = "acara" + full booking
