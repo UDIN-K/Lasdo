@@ -15,6 +15,8 @@ dan juga data yang akan Tim AI Agent pake.
 MENYESUIKAN KOLOM-KOLOM DATASET day.csv UNTUK KEPERLUAN CAPSTONE PROJECT
 ==================================================================
 
+Semua penyesuian akan di tampung pada object_pandas_dataframe bernama `adjusment_day_df`
+
 A. Menghapus kolom (weathersit,temp,atemp,hum,windspeed,casual,registered) pada dataset (day.csv) ✅
 
 B. Mengganti kolom (yr) pada dataset (day.csv): ✅
@@ -28,6 +30,12 @@ C. Menyesuikan kolom (dteday, mnth, holiday, weekday, workingday) pada dataset (
 D. Menyesuaikan kolom (season, weathersit) dengan daerah indonesia pada dataset (day.csv): ✅
     - season: 1 = Summer, 2 = Summer, 3 = Rainy, 4 = Rainy
     - weathersit: (rencana akan di hapus karena tidak relevan dengan daerah indonesia)
+
+E. Menambahkan table berisi kolom (slot_jam, jam_mulai, jam_selesai) untuk dilakukan cros_join pada object `adjusment_day_df`
+
+F. Membuat object_pandas_dataframe baru bernama `adjusment_hour_df`, object tersebut di assign hasil cros_join antara (`adjusment_day_df`, `slots_df`) 
+
+7. Menambahkan beberapa kolom berikut (tanggal, hari, is_weekend, is_libur_nasional, status_terisi, jumlah_booking, jenis_penggunaan, sumber_data) pada `adjusment_hour_df`.
 
 ==================================================================
 NOTE
